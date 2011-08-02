@@ -215,21 +215,48 @@ var Mustache = function() {
         return bool === false || bool === 0 || bool;
       }
 
-      var value;
-      if(is_kinda_truthy(context[name])) {
-        value = context[name];
-      } else if(is_kinda_truthy(this.context[name])) {
-        value = this.context[name];
-      }
+      // extract names and filters from tag name, ie.:
+      // name1.name2.name3 | filter1 | filter2
+      var filters = name.split(/\s*\|\s*/),
+          names = filters[0] === "." ? ["."] : filters[0].split(/\s*\.\s*/);
+      filters.splice(0, 1); // remove names from filters
 
-      if(typeof value === "function") {
-        return value.apply(context);
-      }
-      if(value !== undefined) {
+      function get_value(context, names) {
+        var value = context[names[0]];
+        for(var i = 1; i < names.length; ++i) {
+          if(value === undefined || value === null) {
+            break;
+          }
+          value = value[names[i]];
+        }
         return value;
       }
-      // silently ignore unkown variables
-      return "";
+
+      var value, _value = get_value(context, names);
+      if(is_kinda_truthy(_value)) {
+        value = _value;
+      } else {
+        _value = get_value(this.context, names);
+        if(is_kinda_truthy(_value)) {
+          value = _value;
+        }
+      }
+
+      if(value !== undefined) {
+        if(typeof value === "function") {
+          value = value.apply(context);
+        }
+        // filters are taken from the global scope
+        for(var i = 0; i < filters.length; ++i) {
+          if(typeof window[filters[i]] === "function") {
+            value = window[filters[i]](value);
+          }
+        }
+      } else {
+        // silently ignore unknown variables
+        value = "";
+      }
+      return value;
     },
 
     // Utility methods
@@ -264,7 +291,7 @@ var Mustache = function() {
       } else {
         var iterator = ".";
         if(this.pragmas["IMPLICIT-ITERATOR"]) {
-          iterator = this.pragmas["IMPLICIT-ITERATOR"].iterator;
+          iterator = this.pragmas["IMPLICIT-ITERATOR"].iterator || iterator;
         }
         var ctx = {};
         ctx[iterator] = _context;
