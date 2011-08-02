@@ -1,4 +1,4 @@
-# x-mustache.js - mustache.js with added dot notation in tag names
+#  mustache.js with added dot notation and filters
 
 For the original mustache.js implementation visit <http://github.com/janl/mustache.js>.
 
